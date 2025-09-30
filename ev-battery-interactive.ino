@@ -18,25 +18,33 @@
 
 #include <FastLED.h>
 
-#define NUM_LEDS 144
-#define DATA_PIN 3
-#define PIXEL_SPACING 8  // spacing between
-#define BRIGHTNESS 1     // as a percentage (%)
-#define TIMEOUT 30000    // how long to wait after power on
+#define NUM_LEDS 18
+#define DATA_PIN 2
+#define PIXEL_SPACING 4  // spacing between lit pixels
+#define BRIGHTNESS 15    // brightness of LEDs as a percentage (%)
+#define TIMEOUT 10000    // how long the animation runs before resetting (ms)
 
 CRGB leds[NUM_LEDS];  // array to set apart a block of memory to store and manipulate LED data
 
-int pixelShift = 0;
-int leadingPixel = 0;
-int trailingPixel = 0;
+int pixelShift = 0;     // controls shifting of lit pixels (sliding window)
+int leadingPixel = 0;   // tracks the "head" of blackout progression
+int trailingPixel = 0;  // tracks the "tail" of blackout progression
 bool trailingPixelStart = false;
+
+unsigned long startTime;  // records when the current animation cycle started
 
 void setup() {
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness(255.0 * BRIGHTNESS);
+  FastLED.setBrightness((255 * BRIGHTNESS) / 100);
+  startTime = millis();
 }
 
 void loop() {
+  // --- sliding window logic ---
+  // 1. every frame we check which pixels fall exactly on the spacing boundary relative to pixelShift
+  // 2. those pixels are lit
+  // 3. pixelShift increments each frame (with wraparound) so the lit pixels appear to slide down the
+  // strip as the modulo selects new indices
   for (int i = 0; i < NUM_LEDS; i++) {
     if (((i - pixelShift) % PIXEL_SPACING) == 0) {
       // NOTE: change color here to Red or Green depending on which driver you are uploading to
@@ -44,11 +52,13 @@ void loop() {
     }
   }
 
+  // blackout the LEDs progressively from the head (leadingPixel forward)
   if (leadingPixel <= NUM_LEDS) {
     fill_solid(leds + leadingPixel++, (NUM_LEDS - leadingPixel) + 1, CRGB::Black);
   }
 
-  if (millis() > TIMEOUT) {
+  // after timeout, begin the trailing blackout sequence
+  if (millis() - startTime > TIMEOUT) {
     if (trailingPixelStart == false && pixelShift == 0) {
       trailingPixelStart = true;
     }
@@ -56,13 +66,22 @@ void loop() {
     if (trailingPixel <= NUM_LEDS) {
       fill_solid(leds, trailingPixel++, CRGB::Black);
     } else {
-      while (true);  // hang until restarted by reed switch circuit
+      // instead of hanging forever, reset all counters and restart animation
+      pixelShift = 0;
+      leadingPixel = 0;
+      trailingPixel = 0;
+      trailingPixelStart = false;
+      FastLED.clear(true);   // clear LEDs immediately
+      startTime = millis();  // restart cycle timer
     }
   }
 
+  // apply fading to create a trailing effect behind lit pixels
   fadeToBlackBy(leds, NUM_LEDS, (256 / PIXEL_SPACING) * 4);
+  // increment pixelShift to slide the window
   pixelShift = (pixelShift + 1) % PIXEL_SPACING;
+  // update strip
   FastLED.show();
 
-  delay(33);
+  delay(33);  // animation speed controlled here
 }
