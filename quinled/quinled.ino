@@ -1,87 +1,123 @@
 /* 
 * ----------------------------------------------
 * PROJECT NAME: EV Battery Interactive
-* File name: ev-battery-interactive.ino
+* File name: quinled.ino
 * Description: LED logic for the QuinLED Dig Uno boards that drive the 12V WS2815 LED strips used in the EV battery interactive
 * 
 * Original Author: Mike Heaton
 * Modified By: Isai Sanchez
 * Changes:
 *   - added comments to explain LED pixel logic
+*   - centralized 2 scenarios (right or wrong battery placement) to this QuinLED board, red or green animation plays
+*     depending on signal received from nano
 * Date: 9-30-25
 * Board Used: QuinLED Dig-Uno (ESP32 based Module)
 * Notes:
-*   - LED color pattern must be changed between green or red to match driver corresponding to
-*     correct/incorrect battery placement scenario
+*   - LED color determined by signal received by nano
 * ----------------------------------------------
 */
 
 #include <FastLED.h>
 
-#define NUM_LEDS 18
-#define DATA_PIN 2
-#define PIXEL_SPACING 4  // spacing between lit pixels
-#define BRIGHTNESS 15    // brightness of LEDs as a percentage (%)
-#define TIMEOUT 10000    // how long the animation runs before resetting (ms)
+#define NUM_LEDS 70
+#define LED_DATA_PIN 3
+#define SUCCESS_INPUT_PIN 15  // Q1 on the QuinLED Dig uno board
+#define FAILURE_INPUT_PIN 12  // Q2 on the QuinLED Dig uno board
+#define BRIGHTNESS 50         // brightness of LEDs as a percentage (%)
 
 CRGB leds[NUM_LEDS];  // array to set apart a block of memory to store and manipulate LED data
 
-int pixelShift = 0;     // controls shifting of lit pixels (sliding window)
-int leadingPixel = 0;   // tracks the "head" of blackout progression
-int trailingPixel = 0;  // tracks the "tail" of blackout progression
+enum AnimationMode { IDLE,
+                     SUCCESS,
+                     FAILURE };
+AnimationMode currentMode = IDLE;
+
+
+// --- animation timing control ---
+unsigned long animationStart = 0;
+const unsigned long ANIMATION_DURATION_MS = 5000;
+
+// --- sliding window animation variables ---
+const uint8_t PIXEL_SPACING = 8;  // spacing between lit pixels
+int leadingPixel = 0;
+int trailingPixel = 0;
+uint8_t pixelShift = 0;  // controls shifting of lit pixels (sliding window)
+bool animationActive = false;
 bool trailingPixelStart = false;
+uint8_t hue = 0;
 
-unsigned long startTime;  // records when the current animation cycle started
-
-void setup() {
-  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness((255 * BRIGHTNESS) / 100);
-  startTime = millis();
-}
-
-void loop() {
-  // --- sliding window logic ---
-  // 1. every frame we check which pixels fall exactly on the spacing boundary relative to pixelShift
-  // 2. those pixels are lit
-  // 3. pixelShift increments each frame (with wraparound) so the lit pixels appear to slide down the
-  // strip as the modulo selects new indices
+void animationSlidingWindow(CRGB::HTMLColorCode color) {
   for (int i = 0; i < NUM_LEDS; i++) {
     if (((i - pixelShift) % PIXEL_SPACING) == 0) {
-      // NOTE: change color here to Red or Green depending on which driver you are uploading to
-      leds[i] = CRGB::Red;
+      leds[i] = color;
     }
   }
 
-  // blackout the LEDs progressively from the head (leadingPixel forward)
   if (leadingPixel <= NUM_LEDS) {
     fill_solid(leds + leadingPixel++, (NUM_LEDS - leadingPixel) + 1, CRGB::Black);
   }
 
-  // after timeout, begin the trailing blackout sequence
-  if (millis() - startTime > TIMEOUT) {
+  if (millis() > ANIMATION_DURATION_MS) {
     if (trailingPixelStart == false && pixelShift == 0) {
       trailingPixelStart = true;
     }
 
     if (trailingPixel <= NUM_LEDS) {
       fill_solid(leds, trailingPixel++, CRGB::Black);
-    } else {
-      // instead of hanging forever, reset all counters and restart animation
-      pixelShift = 0;
-      leadingPixel = 0;
-      trailingPixel = 0;
-      trailingPixelStart = false;
-      FastLED.clear(true);   // clear LEDs immediately
-      startTime = millis();  // restart cycle timer
     }
   }
 
-  // apply fading to create a trailing effect behind lit pixels
   fadeToBlackBy(leds, NUM_LEDS, (256 / PIXEL_SPACING) * 4);
-  // increment pixelShift to slide the window
   pixelShift = (pixelShift + 1) % PIXEL_SPACING;
-  // update strip
   FastLED.show();
 
-  delay(33);  // animation speed controlled here
+  delay(33);
+}
+
+void animationDefault() {
+  fill_solid(leds, NUM_LEDS, CHSV(hue, 80, 180));
+  hue++;
+  FastLED.show();
+}
+
+void setup() {
+  FastLED.addLeds<WS2811, LED_DATA_PIN, RGB>(leds, NUM_LEDS);
+  FastLED.setBrightness((255 * BRIGHTNESS) / 100);
+
+  pinMode(SUCCESS_INPUT_PIN, INPUT_PULLDOWN);
+  pinMode(FAILURE_INPUT_PIN, INPUT_PULLDOWN);
+}
+
+void loop() {
+  unsigned long now = millis();
+
+  bool successTiggered = digitalRead(SUCCESS_INPUT_PIN);
+  bool failureTriggered = digitalRead(FAILURE_INPUT_PIN);
+
+  if (successTiggered && currentMode != SUCCESS) {
+    currentMode = SUCCESS;
+    animationStart = now;
+    pixelShift = 0;
+    animationActive = true;
+  } else if (failureTriggered && currentMode != FAILURE) {
+    currentMode = FAILURE;
+    animationStart = now;
+    pixelShift = 0;
+    animationActive = true;
+  } else if (!successTiggered && !failureTriggered && (now - animationStart > ANIMATION_DURATION_MS)) {
+    currentMode = IDLE;
+    animationActive = false;
+  }
+  switch (currentMode) {
+    case SUCCESS:
+      animationSlidingWindow(CRGB::Green);
+      break;
+    case FAILURE:
+      animationSlidingWindow(CRGB::Red);
+      break;
+    case IDLE:
+    default:
+      animationDefault();
+      break;
+  }
 }
