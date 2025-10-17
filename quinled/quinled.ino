@@ -19,7 +19,7 @@
 
 #include <FastLED.h>
 
-#define NUM_LEDS_GREEN_STRIP 36
+#define NUM_LEDS_GREEN_STRIP 350
 #define NUM_LEDS_RED_STRIP 20
 #define GREEN_STRIP_DATA_PIN 3
 #define RED_STRIP_DATA_PIN 16
@@ -40,7 +40,7 @@ unsigned long animationStart = 0;
 const unsigned long ANIMATION_DURATION_MS = 5000;
 unsigned long lastFrameTime = 0;
 uint16_t frameRateMs = 20;              // frame period in ms (20ms = 50fps)
-float animationSpeedMultiplier = 0.25;  // controls animation progression speed
+float animationSpeedMultiplier = 2.0f;  // controls animation progression speed
 
 // --- sliding window animation variables ---
 const uint8_t PIXEL_SPACING = 8;  // spacing between lit pixels
@@ -161,7 +161,7 @@ void animationDefault() {
 }
 
 void setup() {
-  FastLED.addLeds<WS2811, GREEN_STRIP_DATA_PIN, RGB>(gleds, NUM_LEDS_GREEN_STRIP);
+  FastLED.addLeds<WS2815, GREEN_STRIP_DATA_PIN, RGB>(gleds, NUM_LEDS_GREEN_STRIP);
   FastLED.addLeds<WS2811, RED_STRIP_DATA_PIN, RGB>(rleds, NUM_LEDS_RED_STRIP);
   FastLED.setBrightness((255 * BRIGHTNESS) / 100);
 
