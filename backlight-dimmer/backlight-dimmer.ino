@@ -16,6 +16,7 @@ int currentPWM = 0;
 void setup() {
   pinMode(PWM_OUT_PIN, OUTPUT);
 
+  // --- TO CHANGE PWM PHASE CORRECT PRESCALE VALUE ---
   // clear the CS3x bits (bits 2:0) for Timer/Counter3 Control Register B (TCCR3B)
   // and set them to the following:
   //    - CS32: 0
@@ -23,12 +24,21 @@ void setup() {
   //    - CS30: 0
   // this modifies the prescale value for
   // Timer/Counter3 to 8 (see https://ww1.microchip.com/downloads/en/devicedoc/atmel-7766-8-bit-avr-atmega16u4-32u4_datasheet.pdf)
+  // TCCR3B = (TCCR3B & 0b11111000) | 0b010;
   // so now the PWM frequency (for phase correct 8-bit pwm mode) is
   // Frequency = CPU Clock Hz / (Prescaler * 2 * TOP)
-  TCCR3B = (TCCR3B & 0b11111000) | 0b010;
   // NOTE: arduino core sets the WGM3x bits to 0001, which corresponds to the PWM, Phase-Correct, 8-bit mode where TOP is 0x00FF (255), so our frequency
-  // would now be
-  // 16,000,000 / (8 * 2 * 255) = 3.9 kHz
+  // would now be = 16,000,000 / (8 * 2 * 255) = 3.9 kHz
+  //
+  // ---------------------------------------------------
+  //
+  // --- TO CHANGE TIMER/COUNT MODE TO Fast PWM ---
+  // clear WGM3x bits (bits 4:3) for Timer/Counter3 Control Register B (TCCR3B)
+  // and set them to the following
+  //    - WGM33: 0 (already 0 by default)
+  //    - WGM32: 1
+  TCCR3B = (TCCR3B & 0b11100111) | (1 << WGM32);
+  // NOTE: arduino core sets WGM30 bit to 1, so the WGM3x bits will read 0101, indicating Fast PWM mode
 
   analogWrite(PWM_OUT_PIN, 0);
   // initialize smoothing with initial reading
