@@ -44,7 +44,7 @@ uint16_t frameRateFPS = 60;  // frame period in ms (20ms = 50fps)
 // --- sliding window animation variables ---
 const uint8_t PIXEL_SPACING = 10;  // spacing between lit pixels
 const int WINDOW_PIXELS = 6;
-const float ANIMATION_SPEED_MULTIPLIER = 50.0f;
+const float ANIMATION_SPEED_MULTIPLIER = 75.0f;
 float headPos = float(NUM_LEDS_GREEN_STRIP - 1);
 float leadingEdge = float(NUM_LEDS_GREEN_STRIP - 1);
 
@@ -71,7 +71,7 @@ void animationSlidingWindow(CRGB::HTMLColorCode color) {
   float dtSec = dtMs / 1000.0f;
   float period = (float)(WINDOW_PIXELS) + PIXEL_SPACING;
   headPos -= ANIMATION_SPEED_MULTIPLIER * dtSec;  // pos = velocity * change in time
-  leadingEdge -= ANIMATION_SPEED_MULTIPLIER * 1.5f * dtSec;
+  leadingEdge -= ANIMATION_SPEED_MULTIPLIER * dtSec;
 
   // wrap headPos and clamp leading edge at beginning of strip
   if (headPos < 0) headPos += period;
