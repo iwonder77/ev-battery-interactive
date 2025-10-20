@@ -2,7 +2,7 @@
 * ----------------------------------------------
 * PROJECT NAME: EV Battery Interactive
 * File name: quinled.ino
-* Description: LED logic for the QuinLED Dig Uno boards that drive the 12V WS2815 LED strips used in the EV battery interactive
+* Description: LED logic for the QuinLED Dig Uno board driving the 12V WS2815 LED strips used in the EV battery interactive
 * 
 * Original Author: Mike Heaton
 * Modified By: Isai Sanchez
@@ -38,78 +38,64 @@ AnimationMode currentMode = IDLE;
 // --- animation timing control ---
 unsigned long animationStart = 0;
 const unsigned long ANIMATION_DURATION_MS = 7000;
-unsigned long lastFrameTime = 0;
-uint16_t frameRateMs = 20;              // frame period in ms (20ms = 50fps)
-float animationSpeedMultiplier = 1.0f;  // controls animation progression speed
+unsigned long lastFrameTimeMs = 0;
+uint16_t frameRateFPS = 60;  // frame period in ms (20ms = 50fps)
 
 // --- sliding window animation variables ---
 const uint8_t PIXEL_SPACING = 10;  // spacing between lit pixels
-int leadingPixel = 0;
-int trailingPixel = 0;
-float pixelShift = 0;  // controls shifting of lit pixels (sliding window)
-
-// float accumulators for smooth sub-pixel progression
-float leadingPixelFloat = 0;
-float trailingPixelFloat = 0;
+const int WINDOW_PIXELS = 6;
+const float ANIMATION_SPEED_MULTIPLIER = 50.0f;
+float headPos = float(NUM_LEDS_GREEN_STRIP - 1);
+float leadingEdge = float(NUM_LEDS_GREEN_STRIP - 1);
 
 bool animationActive = false;
-bool trailingPixelStart = false;
 float hue = 0;
+
+inline int positiveModulo(int a, int m) {
+  int r = a % m;
+  if (r < 0) r += m;
+  return r;
+}
 
 void animationSlidingWindow(CRGB::HTMLColorCode color) {
   unsigned long now = millis();
+  unsigned long dtMs = now - lastFrameTimeMs;
 
-  //only update animation if enough time has passed
-  if (now - lastFrameTime < frameRateMs) {
-    return;
-  }
-  lastFrameTime = now;
+  if (dtMs < 1000 / frameRateFPS) return;
+  lastFrameTimeMs = now;
 
-  // Clear red strip - only green strip should be active
+  // clear red strip - only green strip should be active
   fill_solid(rleds, NUM_LEDS_RED_STRIP, CRGB::Black);
 
-  for (int i = 0; i < NUM_LEDS_GREEN_STRIP; i++) {
-    if (((i - (int)pixelShift) % PIXEL_SPACING) == 0) {
-      gleds[i] = color;
+  // advance head and leading edge backward (right -> left ) based on elapsed time (time-based motion)
+  float dtSec = dtMs / 1000.0f;
+  float period = (float)(WINDOW_PIXELS) + PIXEL_SPACING;
+  headPos -= ANIMATION_SPEED_MULTIPLIER * dtSec;  // pos = velocity * change in time
+  leadingEdge -= ANIMATION_SPEED_MULTIPLIER * 1.5f * dtSec;
+
+  // wrap headPos and clamp leading edge at beginning of strip
+  if (headPos < 0) headPos += period;
+  if (leadingEdge < 0) leadingEdge = 0;
+
+  // draw pattern across strip from LAST led to FIRST led
+  for (int i = NUM_LEDS_GREEN_STRIP - 1; i >= 0; i--) {
+    if (i < leadingEdge) {
+      gleds[i] = CRGB::Black;  // LED not reached yet
+      continue;
     }
-  }
-
-  // leading pixel reveals animation from left to right (0 -> NUM_LEDS)
-  if (leadingPixel < NUM_LEDS_GREEN_STRIP) {
-    fill_solid(gleds + leadingPixel + 1, (NUM_LEDS_GREEN_STRIP - leadingPixel - 1), CRGB::Black);
-    // progress the leading pixel smoothly
-    leadingPixelFloat += animationSpeedMultiplier;
-    if (leadingPixelFloat >= 1.0) {
-      leadingPixel++;
-      leadingPixelFloat -= 1.0;
+    // compute relative position from head to this LED (reversed direction)
+    int relativePos = positiveModulo((int)floor(headPos) - i, (int)period);
+    if (relativePos < WINDOW_PIXELS) {
+      // if LED is inside window add gradient (fade near tail)
+      uint8_t bright;
+      if (WINDOW_PIXELS <= 1) bright = 255;
+      else bright = map(relativePos, 0, WINDOW_PIXELS - 1, 255, 100);
+      CRGB scaled = color;
+      scaled.nscale8_video(bright);
+      gleds[i] = scaled;
+    } else {
+      gleds[i] = CRGB::Black;
     }
-  }
-
-  if (now - animationStart > ANIMATION_DURATION_MS) {
-    if (trailingPixelStart == false && pixelShift < 1.0) {
-      trailingPixelStart = true;
-    }
-
-    if (trailingPixelStart && trailingPixel < NUM_LEDS_GREEN_STRIP) {
-      // Fill from start to trailing pixel with black
-      fill_solid(gleds, trailingPixel, CRGB::Black);
-
-      // Progress the trailing pixel smoothly
-      trailingPixelFloat += animationSpeedMultiplier;
-      if (trailingPixelFloat >= 1.0) {
-        trailingPixel++;
-        trailingPixelFloat -= 1.0;
-      }
-    }
-  }
-
-  // Fade effect for smoother transitions
-  fadeToBlackBy(gleds, NUM_LEDS_GREEN_STRIP, (256 / PIXEL_SPACING) * 4);
-
-  // Progress the sliding window animation based on speed multiplier
-  pixelShift += animationSpeedMultiplier;
-  if (pixelShift >= PIXEL_SPACING) {
-    pixelShift -= PIXEL_SPACING;
   }
 
   FastLED.show();
@@ -117,12 +103,12 @@ void animationSlidingWindow(CRGB::HTMLColorCode color) {
 
 void animationRedGlow() {
   unsigned long now = millis();
+  unsigned long dtMs = now - lastFrameTimeMs;
 
-  // Fixed: Only update if enough time HAS passed (was inverted)
-  if (now - lastFrameTime < frameRateMs) {
+  if (dtMs < 1000 / frameRateFPS) {
     return;
   }
-  lastFrameTime = now;
+  lastFrameTimeMs = now;
 
   // Clear green strip - only red strip should be active
   fill_solid(gleds, NUM_LEDS_GREEN_STRIP, CRGB::Black);
@@ -144,16 +130,16 @@ void animationRedGlow() {
 void animationDefault() {
   unsigned long now = millis();
 
-  // Frame rate control for consistent timing
-  if (now - lastFrameTime < frameRateMs) {
+  // frame rate control for consistent timing
+  if (now - lastFrameTimeMs < 1000 / frameRateFPS) {
     return;
   }
-  lastFrameTime = now;
+  lastFrameTimeMs = now;
 
-  // Clear green strip in default mode
+  // clear green strip in default mode
   fill_solid(gleds, NUM_LEDS_GREEN_STRIP, CRGB::Black);
 
-  // Rainbow effect on red strip
+  // rainbow effect on red strip
   fill_solid(rleds, NUM_LEDS_RED_STRIP, CHSV(hue, 80, 180));
   hue += 0.5;  // Increment hue for rainbow cycling
 
@@ -167,6 +153,10 @@ void setup() {
 
   pinMode(SUCCESS_INPUT_PIN, INPUT_PULLDOWN);
   pinMode(FAILURE_INPUT_PIN, INPUT_PULLDOWN);
+
+  fill_solid(gleds, NUM_LEDS_GREEN_STRIP, CRGB::Black);
+  fill_solid(rleds, NUM_LEDS_RED_STRIP, CRGB::Black);
+  FastLED.show();
 }
 
 void loop() {
@@ -180,13 +170,6 @@ void loop() {
     // Trigger SUCCESS animation
     currentMode = SUCCESS;
     animationStart = now;
-    lastFrameTime = now - frameRateMs;
-    pixelShift = 0;
-    leadingPixel = 0;
-    leadingPixelFloat = 0;
-    trailingPixel = 0;
-    trailingPixelFloat = 0;
-    trailingPixelStart = false;
     animationActive = true;
     fill_solid(rleds, NUM_LEDS_RED_STRIP, CRGB::Black);
     FastLED.show();
@@ -194,13 +177,6 @@ void loop() {
     // Trigger FAILURE animation
     currentMode = FAILURE;
     animationStart = now;
-    lastFrameTime = now - frameRateMs;
-    pixelShift = 0;
-    leadingPixel = 0;
-    leadingPixelFloat = 0;
-    trailingPixel = 0;
-    trailingPixelFloat = 0;
-    trailingPixelStart = false;
     animationActive = true;
     fill_solid(gleds, NUM_LEDS_GREEN_STRIP, CRGB::Black);
     FastLED.show();
@@ -210,7 +186,7 @@ void loop() {
   if ((currentMode == SUCCESS || currentMode == FAILURE) && (now - animationStart >= ANIMATION_DURATION_MS)) {
     currentMode = IDLE;
     animationActive = false;
-    lastFrameTime = now - frameRateMs;
+    leadingEdge = NUM_LEDS_GREEN_STRIP - 1;  // reset leading edge
 
     // immediately clear both strips on transition to IDLE
     fill_solid(gleds, NUM_LEDS_GREEN_STRIP, CRGB::Black);
