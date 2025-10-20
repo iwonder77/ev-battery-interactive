@@ -20,12 +20,12 @@
 #include <FastLED.h>
 
 #define NUM_LEDS_GREEN_STRIP 350
-#define NUM_LEDS_RED_STRIP 20
+#define NUM_LEDS_RED_STRIP 180
 #define GREEN_STRIP_DATA_PIN 3
 #define RED_STRIP_DATA_PIN 16
 #define SUCCESS_INPUT_PIN 15  // Q1 on the QuinLED Dig uno board
 #define FAILURE_INPUT_PIN 12  // Q2 on the QuinLED Dig uno board
-#define BRIGHTNESS 90         // brightness of LEDs as a percentage (%)
+#define BRIGHTNESS 75         // brightness of LEDs as a percentage (%)
 
 CRGB gleds[NUM_LEDS_GREEN_STRIP];
 CRGB rleds[NUM_LEDS_RED_STRIP];
@@ -37,13 +37,13 @@ AnimationMode currentMode = IDLE;
 
 // --- animation timing control ---
 unsigned long animationStart = 0;
-const unsigned long ANIMATION_DURATION_MS = 5000;
+const unsigned long ANIMATION_DURATION_MS = 7000;
 unsigned long lastFrameTime = 0;
 uint16_t frameRateMs = 20;              // frame period in ms (20ms = 50fps)
-float animationSpeedMultiplier = 2.0f;  // controls animation progression speed
+float animationSpeedMultiplier = 1.0f;  // controls animation progression speed
 
 // --- sliding window animation variables ---
-const uint8_t PIXEL_SPACING = 8;  // spacing between lit pixels
+const uint8_t PIXEL_SPACING = 10;  // spacing between lit pixels
 int leadingPixel = 0;
 int trailingPixel = 0;
 float pixelShift = 0;  // controls shifting of lit pixels (sliding window)
@@ -162,7 +162,7 @@ void animationDefault() {
 
 void setup() {
   FastLED.addLeds<WS2815, GREEN_STRIP_DATA_PIN, RGB>(gleds, NUM_LEDS_GREEN_STRIP);
-  FastLED.addLeds<WS2811, RED_STRIP_DATA_PIN, RGB>(rleds, NUM_LEDS_RED_STRIP);
+  FastLED.addLeds<WS2815, RED_STRIP_DATA_PIN, RGB>(rleds, NUM_LEDS_RED_STRIP);
   FastLED.setBrightness((255 * BRIGHTNESS) / 100);
 
   pinMode(SUCCESS_INPUT_PIN, INPUT_PULLDOWN);
