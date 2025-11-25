@@ -13,6 +13,8 @@
 * ----------------------------------------------
 */
 
+#include <avr/wdt.h>
+
 // --- REED SWITCH PINS ---
 #define POSITIVE_REED_PIN 11
 #define CENTER_REED_PIN 12
@@ -51,6 +53,12 @@ unsigned long signalPulseStart = 0;
 
 
 void setup() {
+  // disable watchdog if it reset the nano
+  wdt_disable();
+  delay(1000);
+  // re-enable watchdog with 2s timeout
+  wdt_enable(WDTO_2S);
+
   pinMode(CENTER_REED_PIN, INPUT_PULLUP);
   pinMode(POSITIVE_REED_PIN, INPUT_PULLUP);
 
@@ -150,5 +158,7 @@ void loop() {
       }
       break;
   }
+
+  wdt_reset();
   delay(10);
 }
