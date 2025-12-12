@@ -1,16 +1,16 @@
-/* 
-* ----------------------------------------------
-* PROJECT NAME: EV Battery Interactive
-* File name: nano.ino
+/**
+* Interactive: EV Battery
+* File: nano.ino
 * Description: this sketch handles the reed switch logic for the battery pack, sending success/failure signals to the 
-*               quin led board according to the battery placement
+*              Quinled board according to the battery placement
 * 
 * Author: Isai Sanchez
 * Date: 10-10-2025
 * Board Used: Arduino Nano
 * Notes:
 *   - State Machine used for better UX
-* ----------------------------------------------
+*
+* (c) Thanksgiving Point Exhibits Electronics Team — 2025
 */
 
 #include <avr/wdt.h>
@@ -53,7 +53,7 @@ unsigned long signalPulseStart = 0;
 
 
 void setup() {
-  // disable watchdog if it reset the nano
+  // disable watchdog if it previously reset the nano
   wdt_disable();
   delay(1000);
   // re-enable watchdog with 2s timeout
@@ -72,11 +72,10 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // read both switches simultaneously
   bool centerReading = (digitalRead(CENTER_REED_PIN) == LOW);
   bool positiveReading = (digitalRead(POSITIVE_REED_PIN) == LOW);
 
-  // debounce both switches
+  // --- Debounce Both Switches ---
   // center:
   if (centerReading != centerLastReading) {
     lastCenterDebounceTime = now;
@@ -85,6 +84,7 @@ void loop() {
     centerStable = centerReading;  // reading has been stable for debounce period
   }
   centerLastReading = centerReading;
+
   // positive:
   if (positiveReading != positiveLastReading) {
     lastPositiveDebounceTime = now;
@@ -113,8 +113,8 @@ void loop() {
       break;
     case BATTERY_INSERTING:
       // center is closed, waiting to see if positive will close
-      // first check if battery has been removed/false center reading
       if (!centerStable) {
+        // first check if battery has been removed or false center reading
         // reset state to idle if so
         currentState = IDLE;
         break;

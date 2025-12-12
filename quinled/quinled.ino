@@ -1,7 +1,6 @@
-/* 
-* ----------------------------------------------
-* PROJECT NAME: EV Battery Interactive
-* File name: quinled.ino
+/**
+* Interactive: EV Battery Pack
+* File: quinled.ino
 * Description: LED logic for the QuinLED Dig Uno board driving the 12V WS2815 LED strips used in the EV battery interactive
 * 
 * Original Author: Mike Heaton
@@ -11,10 +10,9 @@
 *   - centralized 2 scenarios (right or wrong battery placement) to this QuinLED board, red or green animation plays
 *     depending on signal received from nano
 * Date: 9-30-25
-* Board Used: QuinLED Dig-Uno (ESP32 based Module)
+* Board Used: QuinLED Dig-Uno (ESP32 based Module, so signals must be level shifted to 3V3!)
 * Notes:
 *   - LED color determined by signal received by nano
-* ----------------------------------------------
 */
 
 #include <FastLED.h>
