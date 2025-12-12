@@ -1,5 +1,7 @@
 # EV Battery Interactive
 
+https://github.com/user-attachments/assets/273c9546-eabc-42aa-9840-0eb63d9e132e
+
 ## Overview
 
 The source code for the EV Battery Pack interactive firmware, located at Kidopolis in Thanksgiving Point's Museum of Natural Curiosity. This interactive is designed to teach children about the importance of polarity in a real life and modern application, an electric vehicle battery pack! When the batteries are inserted in the correct orientation, a green LED strip animation plays to show the battery pack powering different components of the vehicle, along with a "success" sound effect. Any incorrect orientation will play a glowing red LED strip animation, along with an "incorrect" sound effect. To accomplish this, reed switches were used to detect the battery's orientation, which has embedded magnets that close the switches. An Arduino Nano is able to detect the state of the reed switches, apply some debouncing and state machine logic, and send the appropriate signals to the LED driver and sound module.
