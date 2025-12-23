@@ -31,4 +31,4 @@ Sends HIGH level signals to QuinLED and DY-HL30T based on which reed switches ar
 
 ### QuinLED Dig Uno Sketch
 
-Receives high signals from nano and plays corresponding animations. Incorrect placement of batteries causes a glowing red "incorrect" effect, while a correct placement causes a smooth green animation representing current flow through the car.
+Receives HIGH level signals from the nano and plays corresponding animations on the LED strips. Incorrect placement of batteries causes a glowing red "incorrect" effect, while a correct placement causes a smooth green animation representing current flow through the car.
